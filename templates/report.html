@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório {{ report.scan_id }} — VulnScanner</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--bg:#0a0a0a;--surface:#111111;--border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);--text:#f0ede8;--muted:#5a5a5a;--accent-dim:rgba(240,237,232,0.05);--red:#c0392b;--red-dim:rgba(192,57,43,0.08);--red-border:rgba(192,57,43,0.18);--amber:#b7791f;--amber-dim:rgba(183,121,31,0.08);--blue:#2563a8;--blue-dim:rgba(37,99,168,0.08);--green:#2d6a4f;--green-dim:rgba(45,106,79,0.08);--gray:#5a5a5a;--gray-dim:rgba(90,90,90,0.08);--mono:'DM Mono',monospace;--serif:'Cormorant Garamond',Georgia,serif;--radius:2px;}
+[data-theme="light"]{--bg:#f5f2ed;--surface:#ffffff;--border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.12);--text:#0a0a0a;--muted:#8a8a8a;--accent-dim:rgba(10,10,10,0.04);--red-dim:rgba(192,57,43,0.06);--amber-dim:rgba(183,121,31,0.06);--blue-dim:rgba(37,99,168,0.06);--green-dim:rgba(45,106,79,0.06);--gray-dim:rgba(90,90,90,0.06);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--mono);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;transition:background .3s,color .3s;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.2;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");}
+
+/* Topbar */
+.topbar{position:sticky;top:0;z-index:200;background:rgba(10,10,10,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:.8rem 1.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+[data-theme="light"] .topbar{background:rgba(245,242,237,.92);}
+.logo{font-family:var(--serif);font-size:1.2rem;font-weight:300;letter-spacing:-.02em;text-decoration:none;color:var(--text);}
+.logo em{font-style:italic;color:var(--red);}
+.topbar-url{font-size:.7rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;padding:0 1rem;}
+.topbar-right{display:flex;gap:.5rem;align-items:center;flex-shrink:0;}
+.btn{padding:.4rem .8rem;border-radius:var(--radius);border:1px solid var(--border2);background:transparent;color:var(--text);font-size:.68rem;font-family:var(--mono);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.3rem;transition:background .15s;white-space:nowrap;}
+.btn:hover{background:var(--accent-dim);}
+.btn-primary{background:var(--text);color:var(--bg);border-color:transparent;}
+.btn-primary:hover{opacity:.85;background:var(--text);}
+.theme-btn{background:none;border:1px solid var(--border);color:var(--muted);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;cursor:pointer;transition:all .2s;}
+.theme-btn:hover{color:var(--text);border-color:var(--border2);}
+
+/* Tabs */
+.tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 1.75rem;}
+.tab{padding:.7rem 1rem;font-size:.68rem;letter-spacing:.05em;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--mono);}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--text);border-bottom-color:var(--red);}
+
+/* Page */
+.page{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:1.75rem 1.5rem 4rem;}
+.section{display:none;}
+.section.active{display:block;animation:fadeUp .3s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);}
+.card-header{padding:.9rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-family:var(--serif);font-size:.95rem;font-weight:300;font-style:italic;display:flex;align-items:center;gap:.4rem;}
+.card-title i{font-size:14px;opacity:.5;}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:auto 1fr;gap:1.75rem;align-items:center;background:var(--surface);border:1px solid var(--border);padding:1.75rem;margin-bottom:1.25rem;}
+.score-ring{position:relative;width:110px;height:110px;flex-shrink:0;}
+.score-ring svg{transform:rotate(-90deg);}
+.ring-track{fill:none;stroke:var(--border2);stroke-width:7;}
+.ring-fill{fill:none;stroke-width:7;stroke-linecap:round;}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-num{font-family:var(--serif);font-size:2rem;font-weight:300;line-height:1;}
+.ring-lbl{font-size:.55rem;letter-spacing:.2em;text-transform:uppercase;margin-top:.15rem;opacity:.7;}
+.hero-meta h1{font-family:var(--serif);font-size:1.2rem;font-weight:300;font-style:italic;margin-bottom:.25rem;}
+.hero-meta p{font-size:.68rem;color:var(--muted);margin-bottom:.85rem;}
+.counts-row{display:flex;gap:.4rem;flex-wrap:wrap;}
+.pill{display:inline-flex;align-items:center;gap:.25rem;padding:.18rem .55rem;border-radius:99px;border:1px solid;font-size:.6rem;font-weight:500;letter-spacing:.04em;}
+.s-critical{color:var(--red);} .bg-critical{background:var(--red-dim);border-color:var(--red-border);}
+.s-high{color:var(--amber);} .bg-high{background:var(--amber-dim);border-color:rgba(183,121,31,.2);}
+.s-medium{color:var(--blue);} .bg-medium{background:var(--blue-dim);border-color:rgba(37,99,168,.2);}
+.s-low{color:var(--green);} .bg-low{background:var(--green-dim);border-color:rgba(45,106,79,.2);}
+.s-info{color:var(--gray);} .bg-info{background:var(--gray-dim);border-color:rgba(90,90,90,.15);}
+
+/* Module cards */
+.module{background:var(--surface);border:1px solid var(--border);margin-bottom:.75rem;border-radius:var(--radius);overflow:hidden;}
+.module-header{padding:.85rem 1.1rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;transition:background .12s;}
+.module-header:hover{background:var(--accent-dim);}
+.module-title{display:flex;align-items:center;gap:.6rem;font-size:.8rem;font-weight:500;}
+.module-title i{font-size:15px;opacity:.55;}
+.module-right{display:flex;align-items:center;gap:.4rem;}
+.chevron{transition:transform .22s;color:var(--muted);font-size:14px;margin-left:.2rem;}
+.chevron.open{transform:rotate(180deg);}
+.module-body{border-top:1px solid var(--border);display:none;padding:.6rem 1.1rem .85rem;}
+.module-body.open{display:block;}
+
+/* Findings */
+.finding{border:1px solid var(--border);margin-bottom:.5rem;border-radius:var(--radius);overflow:hidden;}
+.finding-hdr{padding:.6rem .85rem;display:flex;align-items:flex-start;gap:.65rem;cursor:pointer;transition:background .1s;}
+.finding-hdr:hover{background:var(--accent-dim);}
+.sev-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.dot-critical{background:var(--red);}
+.dot-high{background:var(--amber);}
+.dot-medium{background:var(--blue);}
+.dot-low{background:var(--green);}
+.dot-info{background:var(--gray);}
+.finding-title{font-size:.78rem;font-weight:500;flex:1;line-height:1.4;}
+.finding-body{padding:0 .85rem .8rem 2.2rem;font-size:.75rem;color:var(--muted);line-height:1.7;display:none;}
+.finding-body.open{display:block;}
+.cvss-tag{display:inline-block;font-size:.62rem;font-weight:500;padding:.1rem .4rem;border-radius:3px;background:var(--red-dim);color:var(--red);border:1px solid var(--red-border);margin-bottom:.4rem;}
+.fix-box{margin-top:.6rem;background:var(--green-dim);border-left:2px solid var(--green);padding:.55rem .8rem;font-size:.72rem;border-radius:0 var(--radius) var(--radius) 0;}
+.fix-lbl{font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--green);display:block;margin-bottom:.2rem;}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;}
+th{padding:.6rem .9rem;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);}
+td{padding:.75rem .9rem;font-size:.75rem;border-bottom:1px solid var(--border);vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--accent-dim);}
+
+/* Chain cards */
+.chain{border:1px solid;border-radius:var(--radius);margin-bottom:.85rem;overflow:hidden;}
+.chain.sev-critical{border-color:var(--red-border);background:var(--red-dim);}
+.chain.sev-high{border-color:rgba(183,121,31,.2);background:var(--amber-dim);}
+.chain.sev-medium{border-color:rgba(37,99,168,.2);background:var(--blue-dim);}
+.chain-hdr{padding:.95rem 1.1rem;display:flex;align-items:flex-start;gap:.75rem;cursor:pointer;}
+.chain-hdr:hover{background:rgba(255,255,255,.02);}
+.chain-title{font-family:var(--serif);font-size:1rem;font-weight:300;flex:1;line-height:1.3;}
+.chain-body{padding:0 1.1rem 1.1rem;display:none;}
+.chain-body.open{display:block;}
+.chain-section{margin-top:.85rem;}
+.chain-section-lbl{font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;display:flex;align-items:center;gap:.3rem;}
+.chain-section-lbl i{font-size:12px;}
+.chain-content{font-size:.77rem;color:var(--muted);line-height:1.7;}
+.chain-code{font-family:var(--mono);font-size:.72rem;background:rgba(0,0,0,.25);border:1px solid var(--border);padding:.75rem .9rem;border-radius:var(--radius);white-space:pre-wrap;word-break:break-all;color:#7dd3fc;line-height:1.6;}
+.chain-fix{background:var(--green-dim);border-left:2px solid var(--green);padding:.6rem .85rem;font-size:.75rem;color:var(--muted);margin-top:.85rem;border-radius:0 var(--radius) var(--radius) 0;}
+.ai-badge{display:inline-flex;align-items:center;gap:.25rem;font-size:.58rem;font-weight:500;color:#a78bfa;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);padding:.15rem .5rem;border-radius:99px;margin-left:.5rem;}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.1rem;align-items:center;}
+.filter-pill{font-size:.65rem;padding:.25rem .65rem;border-radius:99px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);transition:all .15s;}
+.filter-pill.active{border-color:var(--border2);color:var(--text);}
+
+/* Compliance */
+.comp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem;}
+.comp-card{background:var(--surface);border:1px solid var(--border);padding:1.1rem;border-radius:var(--radius);}
+.comp-score{font-family:var(--serif);font-size:2rem;font-weight:300;line-height:1;margin-bottom:.25rem;}
+.comp-name{font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;}
+.comp-bar{height:2px;background:var(--border);border-radius:99px;overflow:hidden;}
+.comp-bar-fill{height:100%;border-radius:99px;}
+.ctrl-item{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.75rem;}
+.ctrl-item:last-child{border-bottom:none;}
+.ctrl-status{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* Roadmap */
+.roadmap-item{display:grid;grid-template-columns:24px 1fr auto;gap:.75rem;align-items:start;padding:.8rem 0;border-bottom:1px solid var(--border);}
+.roadmap-item:last-child{border-bottom:none;}
+.roadmap-num{width:22px;height:22px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.62rem;color:var(--muted);flex-shrink:0;margin-top:1px;}
+.roadmap-title{font-size:.8rem;font-weight:500;margin-bottom:.2rem;}
+.roadmap-fix{font-size:.72rem;color:var(--muted);line-height:1.6;}
+.sla-pill{font-size:.62rem;font-weight:600;padding:.18rem .5rem;border-radius:99px;flex-shrink:0;}
+
+@media(max-width:650px){.hero{grid-template-columns:1fr;}.score-ring{margin:0 auto;}.comp-grid{grid-template-columns:1fr;}}
+@media print{.topbar,.tabs{display:none;}.section{display:block !important;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/" class="logo">Vuln<em>Scanner</em></a>
+  <div class="topbar-url">{{ report.url }}</div>
+  <div class="topbar-right">
+    <a href="/" class="btn"><i class="ti ti-plus"></i> Novo scan</a>
+    <a href="/api/report/{{ report.scan_id }}/pdf" class="btn"><i class="ti ti-download"></i> PDF</a>
+    <a href="/api/report/{{ report.scan_id }}" class="btn" target="_blank"><i class="ti ti-json"></i> JSON</a>
+    <button class="theme-btn" onclick="toggleTheme()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+    </button>
+    <button class="btn btn-primary" onclick="window.print()"><i class="ti ti-printer"></i> Exportar</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('executive',this)">Executivo</button>
+  <button class="tab" onclick="switchTab('findings',this)">Findings</button>
+  <button class="tab" onclick="switchTab('chains',this)">⛓ Attack Chains</button>
+  <button class="tab" onclick="switchTab('compliance',this)">Compliance</button>
+  <button class="tab" onclick="switchTab('roadmap',this)">Roadmap</button>
+</div>
+
+<div class="page">
+{% set score = report.score %}
+{% if score < 40 %}{% set sc = "var(--red)" %}{% set sl = "Crítico" %}
+{% elif score < 70 %}{% set sc = "var(--amber)" %}{% set sl = "Atenção" %}
+{% else %}{% set sc = "var(--green)" %}{% set sl = "Bom" %}{% endif %}
+{% set circ = 283 %}{% set offset = circ - (score / 100 * circ) %}
+{% set ex = report.executive.executive %}
+
+<!-- ═══ EXECUTIVE ═══════════════════════════════════════════════════════════ -->
+<div id="tab-executive" class="section active">
+  <div class="hero">
+    <div class="score-ring">
+      <svg width="110" height="110" viewBox="0 0 110 110">
+        <circle class="ring-track" cx="55" cy="55" r="45"/>
+        <circle class="ring-fill" cx="55" cy="55" r="45" stroke="{{ sc }}" stroke-dasharray="{{ circ }}" stroke-dashoffset="{{ offset }}"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-num" style="color:{{ sc }}">{{ score }}</div>
+        <div class="ring-lbl" style="color:{{ sc }}">{{ sl }}</div>
+      </div>
+    </div>
+    <div class="hero-meta">
+      <h1>Relatório de Segurança</h1>
+      <p>{{ report.url }} &nbsp;·&nbsp; {{ ex.scan_date }} &nbsp;·&nbsp; {{ ex.modules_run }} módulos &nbsp;·&nbsp; {{ report.elapsed }}s &nbsp;·&nbsp; <span style="font-family:var(--mono);font-size:.65rem">{{ report.scan_id }}</span></p>
+      <div class="counts-row">
+        {% for sev, count in report.counts.items() %}{% if count > 0 %}<span class="pill s-{{ sev }} bg-{{ sev }}">{{ count }} {{ sev }}</span>{% endif %}{% endfor %}
+        {% if ex.max_cvss > 0 %}<span class="pill s-critical bg-critical">CVSS {{ ex.max_cvss }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if ex.summary %}
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="card-body" style="padding:1.25rem;font-size:.8rem;color:var(--muted);line-height:1.8;border-left:2px solid var(--red)">{{ ex.summary }}</div>
+  </div>
+  {% endif %}
+
+  {% if report.executive.top_findings %}
+  <div class="card">
+    <div class="card-header"><div class="card-title"><i class="ti ti-alert-triangle"></i> Top Vulnerabilidades</div></div>
+    <table>
+      <thead><tr><th>Módulo</th><th>Vulnerabilidade</th><th>CVSS</th><th>SLA</th></tr></thead>
+      <tbody>
+      {% for tf in report.executive.top_findings %}
+      <tr>
+        <td style="color:var(--muted);white-space:nowrap">{{ tf.module }}</td>
+        <td><span class="pill s-{{ tf.severity }} bg-{{ tf.severity }}" style="margin-right:.4rem">{{ tf.severity }}</span>{{ tf.title }}</td>
+        <td style="font-weight:600;{% if tf.cvss >= 9 %}color:var(--red){% elif tf.cvss >= 7 %}color:var(--amber){% else %}color:var(--blue){% endif %}">{{ tf.cvss }}</td>
+        <td>{% if tf.sla_days %}<span class="sla-pill {% if tf.sla_days <= 1 %}s-critical bg-critical{% elif tf.sla_days <= 7 %}s-high bg-high{% else %}s-medium bg-medium{% endif %}">{{ tf.sla_days }}d</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══ FINDINGS ════════════════════════════════════════════════════════════ -->
+<div id="tab-findings" class="section">
+  <div class="filter-bar">
+    <span style="font-size:.65rem;color:var(--muted);margin-right:.2rem">Filtrar:</span>
+    {% for sev in ['critical','high','medium','low','info'] %}
+    <button class="filter-pill active s-{{ sev }}" data-sev="{{ sev }}" onclick="toggleFilter(this)">{{ sev }}</button>
+    {% endfor %}
+    <button class="btn" onclick="expandAll()" style="margin-left:auto;font-size:.65rem"><i class="ti ti-arrows-vertical"></i> Expandir todos</button>
+  </div>
+  {% for mod in report.modules %}
+  {% set crits = mod.findings | selectattr("severity","eq","critical") | list | length %}
+  {% set highs = mod.findings | selectattr("severity","eq","high") | list | length %}
+  {% set meds  = mod.findings | selectattr("severity","eq","medium") | list | length %}
+  <div class="module" data-module="{{ mod.module }}">
+    <div class="module-header" onclick="toggleModule(this)">
+      <div class="module-title"><i class="ti {{ mod.icon }}"></i>{{ mod.module }} <span style="font-size:.62rem;color:var(--muted);font-weight:400">({{ mod.findings|length }})</span></div>
+      <div class="module-right">
+        {% if crits > 0 %}<span class="pill s-critical bg-critical">{{ crits }}</span>{% endif %}
+        {% if highs > 0 %}<span class="pill s-high bg-high">{{ highs }}</span>{% endif %}
+        {% if meds > 0 %}<span class="pill s-medium bg-medium">{{ meds }}</span>{% endif %}
+        {% if crits == 0 and highs == 0 and meds == 0 %}<span style="font-size:.65rem;color:var(--green)">✓</span>{% endif %}
+        <i class="ti ti-chevron-down chevron {% if crits > 0 or highs > 0 %}open{% endif %}"></i>
+      </div>
+    </div>
+    <div class="module-body {% if crits > 0 or highs > 0 %}open{% endif %}">
+      {% if mod.findings %}
+      {% for f in mod.findings %}
+      <div class="finding bg-{{ f.severity }}" data-sev="{{ f.severity }}">
+        <div class="finding-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
+          <div class="sev-dot dot-{{ f.severity }}"></div>
+          <div class="finding-title">{{ f.title }}</div>
+          <span class="pill s-{{ f.severity }} bg-{{ f.severity }}">{{ f.severity }}</span>
+        </div>
+        <div class="finding-body">
+          {% if f.get('cvss') %}<span class="cvss-tag">CVSS {{ f.cvss }}</span>{% endif %}
+          <p>{{ f.detail }}</p>
+          {% if f.fix %}<div class="fix-box"><span class="fix-lbl">Como corrigir</span>{{ f.fix }}</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:.75rem;display:flex;align-items:center;justify-content:center;gap:.4rem"><i class="ti ti-circle-check s-low"></i> Nenhum problema neste módulo</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ CHAINS ══════════════════════════════════════════════════════════════ -->
+<div id="tab-chains" class="section">
+{% set chain_mod = namespace(found=none) %}
+{% for mod in report.modules %}{% if mod.module == "Attack Chain Engine" %}{% set chain_mod.found = mod %}{% endif %}{% endfor %}
+{% if chain_mod.found %}
+  {% if chain_mod.found.ai_analysis %}
+  <div style="display:inline-flex;align-items:center;gap:.35rem;font-size:.65rem;color:#a78bfa;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);padding:.25rem .7rem;border-radius:99px;margin-bottom:1rem"><i class="ti ti-sparkles" style="font-size:12px"></i> Análise com IA — Claude raciocinou sobre combinações exploráveis</div>
+  {% endif %}
+  {% if chain_mod.found.overall_assessment %}
+  <div class="card" style="margin-bottom:1.1rem"><div class="card-body" style="padding:1rem 1.25rem;font-size:.78rem;color:var(--muted);line-height:1.7;border-left:2px solid var(--red)">{{ chain_mod.found.overall_assessment }}</div></div>
+  {% endif %}
+  {% if chain_mod.found.chains %}
+  {% for chain in chain_mod.found.chains %}
+  {% set sev = chain.severity %}
+  {% set c = "var(--red)" if sev == "critical" else "var(--amber)" if sev == "high" else "var(--blue)" %}
+  <div class="chain sev-{{ sev }}">
+    <div class="chain-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
+      <div style="margin-top:2px">
+        <i class="ti ti-arrows-join" style="font-size:18px;color:{{ c }}"></i>
+      </div>
+      <div style="flex:1">
+        <div class="chain-title" style="color:{{ c }}">{{ chain.title }}{% if chain.source and 'ai' in chain.source %}<span class="ai-badge"><i class="ti ti-sparkles" style="font-size:10px"></i> IA</span>{% endif %}</div>
+        <div style="display:flex;gap:.4rem;margin-top:.35rem;flex-wrap:wrap">
+          <span class="pill s-{{ sev }} bg-{{ sev }}">{{ sev }}</span>
+          {% for f in chain.findings_involved[:4] %}<span style="font-size:.6rem;color:var(--muted);border:1px solid var(--border);padding:.12rem .45rem;border-radius:99px">{{ f[:45] }}{% if f|length > 45 %}…{% endif %}</span>{% endfor %}
+        </div>
+      </div>
+      {% if chain.cvss_estimate %}<div style="font-size:.75rem;font-weight:600;color:{{ c }};flex-shrink:0;background:{{ "var(--red-dim)" if sev == "critical" else "var(--amber-dim)" }};border:1px solid;border-color:{{ "var(--red-border)" if sev == "critical" else "rgba(183,121,31,.2)" }};padding:.25rem .55rem;border-radius:var(--radius)">CVSS {{ chain.cvss_estimate }}</div>{% endif %}
+    </div>
+    <div class="chain-body">
+      {% if chain.findings_involved %}
+      <div class="chain-section">
+        <div class="chain-section-lbl"><i class="ti ti-list-check"></i> Findings envolvidos</div>
+        {% for f in chain.findings_involved %}<div style="font-size:.75rem;color:var(--muted);padding:.2rem 0;display:flex;align-items:center;gap:.5rem"><span style="color:{{ c }};font-size:.8rem">→</span>{{ f }}</div>{% endfor %}
+      </div>
+      {% endif %}
+      {% if chain.attack_narrative %}
+      <div class="chain-section">
+        <div class="chain-section-lbl"><i class="ti ti-map-pin"></i> Narrativa de ataque</div>
+        <div class="chain-content">{{ chain.attack_narrative }}</div>
+      </div>
+      {% endif %}
+      {% if chain.poc_conceptual and "API key" not in chain.poc_conceptual %}
+      <div class="chain-section">
+        <div class="chain-section-lbl"><i class="ti ti-terminal-2"></i> PoC conceitual</div>
+        <div class="chain-code">{{ chain.poc_conceptual }}</div>
+      </div>
+      {% endif %}
+      {% if chain.impact %}
+      <div class="chain-section">
+        <div class="chain-section-lbl"><i class="ti ti-alert-triangle"></i> Impacto</div>
+        <div class="chain-content">{{ chain.impact }}</div>
+      </div>
+      {% endif %}
+      {% if chain.unified_fix %}<div class="chain-fix"><span style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--green);display:block;margin-bottom:.2rem">Remediação integrada</span>{{ chain.unified_fix }}</div>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div style="text-align:center;padding:3rem;color:var(--muted)"><i class="ti ti-circle-check" style="font-size:2rem;display:block;margin-bottom:.75rem;color:var(--green)"></i>Nenhuma attack chain detectada.</div>
+  {% endif %}
+{% endif %}
+</div>
+
+<!-- ═══ COMPLIANCE ══════════════════════════════════════════════════════════ -->
+<div id="tab-compliance" class="section">
+{% set comp_mod = namespace(found=none) %}
+{% for mod in report.modules %}{% if mod.module == "Compliance" %}{% set comp_mod.found = mod %}{% endif %}{% endfor %}
+{% if comp_mod.found and comp_mod.found.compliance_data %}
+{% set comp = comp_mod.found.compliance_data %}
+  <div class="comp-grid">
+    {% for fw_key, fw in comp.frameworks.items() %}
+    {% set pct = fw.score_pct %}
+    {% set fc = "var(--red)" if pct < 50 else "var(--amber)" if pct < 80 else "var(--green)" %}
+    <div class="comp-card">
+      <div class="comp-score" style="color:{{ fc }}">{{ pct }}%</div>
+      <div class="comp-name">{{ fw.framework }}</div>
+      <div class="comp-bar"><div class="comp-bar-fill" style="width:{{ pct }}%;background:{{ fc }}"></div></div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:.5rem">{{ fw.passing }}/{{ fw.total_controls }} controles ✓ · {{ fw.compliance_level }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if comp.critical_gaps %}
+  <div class="card">
+    <div class="card-header"><div class="card-title"><i class="ti ti-alert-triangle"></i> Controles críticos falhando</div></div>
+    <div style="padding:.5rem 0">
+      {% for gap in comp.critical_gaps %}
+      <div class="ctrl-item" style="padding:.6rem 1.25rem">
+        <div style="display:flex;align-items:center;gap:.65rem;flex:1">
+          <div class="ctrl-status" style="background:{% if gap.status == 'fail_critical' %}var(--red){% else %}var(--amber){% endif %}"></div>
+          <div>
+            <div style="font-size:.78rem;font-weight:500">{{ gap.control }} — {{ gap.name }}</div>
+            <div style="font-size:.63rem;color:var(--muted)">{{ gap.framework }}</div>
+          </div>
+        </div>
+        <span class="pill {% if gap.status == 'fail_critical' %}s-critical bg-critical{% else %}s-high bg-high{% endif %}">{{ "critical" if gap.status == "fail_critical" else "high" }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+{% else %}
+  <div style="text-align:center;padding:3rem;color:var(--muted)"><i class="ti ti-certificate" style="font-size:2rem;display:block;margin-bottom:.75rem;opacity:.3"></i>Dados de compliance não disponíveis neste scan.</div>
+{% endif %}
+</div>
+
+<!-- ═══ ROADMAP ═════════════════════════════════════════════════════════════ -->
+<div id="tab-roadmap" class="section">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-map-2"></i> Roadmap de Remediação</div>
+    </div>
+    <div style="padding:.75rem 1.25rem 1.25rem">
+      {% if report.executive.roadmap %}
+      {% for item in report.executive.roadmap %}
+      <div class="roadmap-item">
+        <div class="roadmap-num">{{ loop.index }}</div>
+        <div>
+          <div class="roadmap-title"><span class="pill s-{{ item.severity }} bg-{{ item.severity }}" style="margin-right:.4rem">{{ item.severity }}</span>{{ item.title }}</div>
+          <div style="font-size:.65rem;color:var(--muted);margin:.2rem 0 .4rem">{{ item.module }}</div>
+          <div class="roadmap-fix">{{ item.fix }}</div>
+        </div>
+        <div>{% if item.sla_days %}<span class="sla-pill {% if item.sla_days <= 1 %}s-critical bg-critical{% elif item.sla_days <= 7 %}s-high bg-high{% elif item.sla_days <= 30 %}s-medium bg-medium{% else %}s-low bg-low{% endif %}">{{ item.sla_days }}d</span>{% endif %}</div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="text-align:center;padding:2rem;color:var(--muted);font-size:.8rem">Nenhuma ação de remediação encontrada.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+</div><!-- /page -->
+
+<script>
+const _t = localStorage.getItem('vs-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', _t);
+function toggleTheme() {
+  const nt = _t === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', nt);
+  localStorage.setItem('vs-theme', nt);
+  location.reload();
+}
+
+function switchTab(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+function toggleModule(hdr) {
+  const body = hdr.nextElementSibling;
+  const chev = hdr.querySelector('.chevron');
+  const open = body.classList.contains('open');
+  body.classList.toggle('open', !open);
+  chev.classList.toggle('open', !open);
+}
+
+function expandAll() {
+  document.querySelectorAll('.module-body').forEach(b => b.classList.add('open'));
+  document.querySelectorAll('.chevron').forEach(c => c.classList.add('open'));
+}
+
+function toggleFilter(btn) {
+  btn.classList.toggle('active');
+  const active = [...document.querySelectorAll('.filter-pill.active')].map(b => b.dataset.sev);
+  document.querySelectorAll('.finding').forEach(f => {
+    f.style.display = active.includes(f.dataset.sev) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

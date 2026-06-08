@@ -1,0 +1,185 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{{ project.name }} — VulnScanner{% endblock %}
+{% block page_title %}{{ project.name }}{% endblock %}
+{% block breadcrumb %}<div class="breadcrumb"><a href="/projects" style="color:var(--muted);text-decoration:none">Projetos</a> / {{ project.name }}</div>{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-sm" onclick="openModal('mEdit')"><i class="ti ti-edit"></i> Editar</button>
+<a href="/scan-page?project={{ project.id }}" class="btn btn-sm btn-primary"><i class="ti ti-plus"></i> Novo Scan</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Score trending -->
+<div class="card" style="margin-bottom:1.25rem;animation:fadeUp .4s ease both">
+  <div class="card-header">
+    <div class="card-title"><i class="ti ti-chart-line"></i> Score ao longo do tempo</div>
+    <div style="font-size:.65rem;color:var(--muted)">{{ scans|length }} scan(s)</div>
+  </div>
+  <div class="card-body" style="padding:.75rem 1.25rem 1.25rem">
+    {% if scans|length > 1 %}
+    <canvas id="trendChart" height="70"></canvas>
+    {% else %}
+    <div class="empty" style="padding:2rem">
+      <i class="ti ti-chart-line"></i>
+      <h3>Aguardando dados</h3>
+      <p>Execute pelo menos 2 scans para ver o trending.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Scan list -->
+<div class="card" style="animation:fadeUp .4s .1s ease both">
+  <div class="card-header">
+    <div class="card-title"><i class="ti ti-history"></i> Histórico</div>
+    <div style="display:flex;gap:.5rem">
+      <a href="/diff" class="btn btn-sm"><i class="ti ti-git-compare"></i> Comparar</a>
+      <a href="/scan-page?project={{ project.id }}" class="btn btn-sm btn-primary"><i class="ti ti-search"></i> Escanear</a>
+    </div>
+  </div>
+  {% if scans %}
+  <table>
+    <thead><tr><th>Score</th><th>URL / ID</th><th>Findings</th><th>Tempo</th><th>Data</th><th></th></tr></thead>
+    <tbody>
+    {% for s in scans %}
+    {% set sc = s.score %}
+    {% set c = "var(--red)" if sc < 40 else "var(--amber)" if sc < 70 else "var(--green)" %}
+    <tr>
+      <td><div class="score-ring-sm" style="border-color:{{ c }};color:{{ c }}">{{ sc }}</div></td>
+      <td style="max-width:240px">
+        <a href="/report/{{ s.scan_id }}" style="font-size:.8rem;font-weight:500;color:var(--text);text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.url }}</a>
+        <span style="font-size:.6rem;color:var(--muted);font-family:var(--mono)">{{ s.scan_id }}</span>
+      </td>
+      <td>
+        <div style="display:flex;gap:.25rem;flex-wrap:wrap">
+          {% if s.count_critical > 0 %}<span class="pill s-critical bg-critical">{{ s.count_critical }} crit</span>{% endif %}
+          {% if s.count_high > 0 %}<span class="pill s-high bg-high">{{ s.count_high }} high</span>{% endif %}
+          {% if s.count_medium > 0 %}<span class="pill s-medium bg-medium">{{ s.count_medium }} med</span>{% endif %}
+        </div>
+      </td>
+      <td style="color:var(--muted);font-size:.72rem">{{ s.elapsed }}s</td>
+      <td style="color:var(--muted);font-size:.72rem;white-space:nowrap">{{ s.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>
+        <div style="display:flex;gap:.3rem">
+          <a href="/report/{{ s.scan_id }}" class="btn btn-icon btn-sm" title="Ver relatório"><i class="ti ti-eye" style="font-size:13px"></i></a>
+          <a href="/api/report/{{ s.scan_id }}/pdf" class="btn btn-icon btn-sm" title="Baixar PDF"><i class="ti ti-download" style="font-size:13px"></i></a>
+          <button onclick="copyBadge('{{ s.scan_id }}')" class="btn btn-icon btn-sm" title="Copiar badge"><i class="ti ti-medal" style="font-size:13px"></i></button>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <i class="ti ti-search-off"></i>
+    <h3>Nenhum scan</h3>
+    <p>Inicie um scan para começar a monitorar este alvo.</p>
+    <a href="/scan-page?project={{ project.id }}" class="btn" style="margin-top:1rem"><i class="ti ti-plus"></i> Primeiro scan</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Modal Editar -->
+<div class="overlay" id="mEdit" onclick="if(event.target===this)closeModal('mEdit')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('mEdit')"><i class="ti ti-x"></i></button>
+    <div class="modal-title">Editar projeto</div>
+    <div class="field"><label class="field-label">Nome</label><input class="input" id="eName" value="{{ project.name }}"></div>
+    <div class="field"><label class="field-label">Descrição</label><input class="input" id="eDesc" value="{{ project.description }}"></div>
+    <div class="field"><label class="field-label">Cor</label><input type="color" class="input" id="eColor" value="{{ project.color }}" style="height:40px;padding:.3rem"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="deleteProject()"><i class="ti ti-trash"></i> Excluir</button>
+      <button class="btn" onclick="closeModal('mEdit')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProject()"><i class="ti ti-check"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const trendData = {{ trending | safe }};
+
+if (trendData.length > 1) {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
+  const textColor = isDark ? '#5a5a5a' : '#8a8a8a';
+
+  new Chart(document.getElementById('trendChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: trendData.map(d => d.date),
+      datasets: [{
+        label: 'Score',
+        data: trendData.map(d => d.score),
+        borderColor: '#c0392b',
+        backgroundColor: 'rgba(192,57,43,0.06)',
+        tension: 0.4, fill: true,
+        pointBackgroundColor: trendData.map(d => d.score < 40 ? '#c0392b' : d.score < 70 ? '#b7791f' : '#2d6a4f'),
+        pointRadius: 4, pointHoverRadius: 6, borderWidth: 1.5,
+      }, {
+        label: 'Critical',
+        data: trendData.map(d => d.critical),
+        borderColor: 'rgba(192,57,43,0.3)',
+        borderDash: [3,3], tension: 0.3, fill: false,
+        pointRadius: 2, yAxisID: 'y2', borderWidth: 1,
+      }]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: textColor, font: { family: "'DM Mono', monospace", size: 10 } } },
+        tooltip: {
+          backgroundColor: isDark ? '#111' : '#fff',
+          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)',
+          borderWidth: 1, titleColor: isDark ? '#f0ede8' : '#0a0a0a',
+          bodyColor: textColor, cornerRadius: 2,
+          callbacks: { afterBody: items => [`ID: ${trendData[items[0].dataIndex].scan_id}`] }
+        }
+      },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: "'DM Mono', monospace", size: 10 } } },
+        y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } }, title: { display: true, text: 'Score', color: textColor, font: { size: 10 } } },
+        y2: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#c0392b', font: { size: 9 } }, title: { display: true, text: 'Critical', color: '#c0392b', font: { size: 9 } } }
+      },
+      onClick: (e, els) => { if (els.length) window.location.href = `/report/${trendData[els[0].index].scan_id}`; }
+    }
+  });
+}
+
+async function saveProject() {
+  try {
+    await api('PUT', '/api/projects/{{ project.id }}', {
+      name: document.getElementById('eName').value.trim(),
+      description: document.getElementById('eDesc').value,
+      color: document.getElementById('eColor').value,
+    });
+    toast('Projeto atualizado!');
+    closeModal('mEdit');
+    setTimeout(() => location.reload(), 700);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function deleteProject() {
+  if (!confirm('Excluir projeto e todos os scans? Esta ação não pode ser desfeita.')) return;
+  try {
+    await api('DELETE', '/api/projects/{{ project.id }}');
+    toast('Projeto excluído');
+    setTimeout(() => location.href = '/projects', 800);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function copyBadge(scanId) {
+  const md = `![Security Score](${location.origin}/api/report/${scanId}/badge.svg)`;
+  navigator.clipboard.writeText(md);
+  toast('Badge copiado!');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Projetos — VulnScanner{% endblock %}
+{% block page_title %}Projetos{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="openModal('mNewProj')"><i class="ti ti-plus"></i> Novo projeto</button>
+{% endblock %}
+
+{% block extra_css %}<style>@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}</style>{% endblock %}
+
+{% block content %}
+{% if projects %}
+<div class="g3" style="animation:fadeUp .4s ease both">
+  {% for p in projects %}
+  {% set latest = p.latest_scan() %}
+  <a href="/projects/{{ p.id }}" style="text-decoration:none">
+    <div class="card" style="padding:1.5rem;cursor:pointer;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='var(--border2)';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <div style="width:10px;height:10px;border-radius:50%;background:{{ p.color }};flex-shrink:0;margin-top:2px"></div>
+          <div>
+            <div style="font-size:.9rem;font-weight:500;color:var(--text)">{{ p.name }}</div>
+            {% if p.description %}<div style="font-size:.68rem;color:var(--muted);margin-top:.15rem">{{ p.description[:50] }}</div>{% endif %}
+          </div>
+        </div>
+        {% if latest %}
+          {% set sc = latest.score %}
+          {% set c = "var(--red)" if sc < 40 else "var(--amber)" if sc < 70 else "var(--green)" %}
+          <div class="score-ring-sm" style="border-color:{{ c }};color:{{ c }}">{{ sc }}</div>
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:1rem;font-size:.65rem;color:var(--muted);border-top:1px solid var(--border);padding-top:.85rem;margin-top:.5rem">
+        <span><i class="ti ti-search" style="font-size:11px"></i> {{ p.scan_count() }} scans</span>
+        {% if latest %}
+        <span><i class="ti ti-calendar" style="font-size:11px"></i> {{ latest.created_at.strftime('%d/%m/%Y') }}</span>
+        <div style="margin-left:auto;display:flex;gap:.25rem">
+          {% if latest.count_critical > 0 %}<span class="pill s-critical bg-critical">{{ latest.count_critical }}C</span>{% endif %}
+          {% if latest.count_high > 0 %}<span class="pill s-high bg-high">{{ latest.count_high }}H</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty" style="padding:5rem;animation:fadeUp .4s ease both">
+  <i class="ti ti-folder-off"></i>
+  <h3>Nenhum projeto ainda</h3>
+  <p>Organize seus scans criando projetos por alvo ou cliente.</p>
+  <button class="btn btn-primary" onclick="openModal('mNewProj')" style="margin-top:1.25rem"><i class="ti ti-plus"></i> Criar primeiro projeto</button>
+</div>
+{% endif %}
+
+<div class="overlay" id="mNewProj" onclick="if(event.target===this)closeModal('mNewProj')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('mNewProj')"><i class="ti ti-x"></i></button>
+    <div class="modal-title">Novo projeto</div>
+    <div class="field"><label class="field-label">Nome</label><input class="input" id="pName" placeholder="Ex: Site Principal" autofocus></div>
+    <div class="field"><label class="field-label">Descrição</label><input class="input" id="pDesc" placeholder="Opcional"></div>
+    <div class="field"><label class="field-label">Cor</label><input type="color" class="input" id="pColor" value="#c0392b" style="height:40px;padding:.3rem"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('mNewProj')">Cancelar</button>
+      <button class="btn btn-primary" onclick="createProject()"><i class="ti ti-check"></i> Criar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function createProject() {
+  const name = document.getElementById('pName').value.trim();
+  if (!name) { toast('Nome obrigatório', 'err'); return; }
+  try {
+    const p = await api('POST', '/api/projects', { name, description: document.getElementById('pDesc').value, color: document.getElementById('pColor').value });
+    toast('Projeto criado!');
+    setTimeout(() => location.href = `/projects/${p.id}`, 700);
+  } catch(e) { toast(e.message, 'err'); }
+}
+</script>
+{% endblock %}

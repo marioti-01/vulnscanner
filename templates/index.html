@@ -1,0 +1,218 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Novo Scan — VulnScanner{% endblock %}
+{% block page_title %}Novo Scan{% endblock %}
+
+{% block extra_css %}
+<style>
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+.mod-item{display:flex;align-items:center;gap:.6rem;font-size:.7rem;color:var(--muted);padding:.3rem 0;transition:color .2s;}
+.mod-item.running{color:var(--amber);}
+.mod-item.done{color:var(--green);}
+.mod-item i{font-size:13px;flex-shrink:0;}
+.prog-bar{height:2px;background:var(--border);border-radius:99px;overflow:hidden;margin:.75rem 0;}
+.prog-fill{height:100%;background:var(--red);border-radius:99px;width:0%;transition:width .4s ease;}
+.sev-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:0 auto;animation:fadeUp .4s ease both">
+
+  <!-- Scan box -->
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-search"></i> Iniciar varredura</div>
+    </div>
+    <div class="card-body">
+      <!-- URL -->
+      <div class="field" style="margin-bottom:1rem">
+        <label class="field-label">URL do alvo</label>
+        <div style="display:flex;gap:.6rem">
+          <input class="input" id="urlInput" placeholder="https://seusite.com ou IP" autocomplete="off" style="flex:1">
+          <button class="btn btn-primary" id="scanBtn" onclick="startScan()" style="flex-shrink:0;padding:.65rem 1.25rem">
+            <i class="ti ti-search"></i> Escanear
+          </button>
+        </div>
+      </div>
+
+      <!-- Options row -->
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
+        <div style="flex:1;min-width:160px">
+          <label class="field-label" style="display:block;margin-bottom:.4rem">Projeto (opcional)</label>
+          <select class="input" id="projectSel" style="width:100%">
+            <option value="">Sem projeto</option>
+            {% for p in projects %}
+            <option value="{{ p.id }}" {% if request.args.get('project') == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="flex:1;min-width:160px">
+          <label class="field-label" style="display:block;margin-bottom:.4rem">Velocidade</label>
+          <select class="input" id="rateSel" style="width:100%">
+            <option value="normal">Normal</option>
+            <option value="stealth">Stealth (furtivo)</option>
+            <option value="aggressive">Agressivo</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Auth -->
+      <details style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <summary style="padding:.7rem 1rem;font-size:.72rem;color:var(--muted);cursor:pointer;list-style:none;display:flex;align-items:center;gap:.4rem;user-select:none">
+          <i class="ti ti-lock" style="font-size:13px"></i> Autenticação (opcional)
+          <i class="ti ti-chevron-down" style="font-size:12px;margin-left:auto;transition:transform .2s" id="authChev"></i>
+        </summary>
+        <div style="padding:1rem;border-top:1px solid var(--border)">
+          <div class="field">
+            <label class="field-label">Cookies de sessão</label>
+            <input class="input" id="cookieInput" placeholder="session=abc123; token=xyz">
+          </div>
+          <div class="field" style="margin:0">
+            <label class="field-label">Headers customizados (JSON)</label>
+            <input class="input" id="headerInput" placeholder='{"Authorization": "Bearer token"}'>
+          </div>
+        </div>
+      </details>
+      <script>
+        document.querySelector('details summary').addEventListener('toggle', function(e){
+          document.getElementById('authChev').style.transform = e.target.parentElement.open ? 'rotate(180deg)' : '';
+        });
+      </script>
+
+      <!-- Error -->
+      <div id="errMsg" style="display:none;background:var(--red-dim);border:1px solid var(--red-border);color:var(--red);font-size:.75rem;padding:.65rem .85rem;border-radius:var(--radius);margin-top:.85rem"></div>
+
+      <!-- Progress -->
+      <div id="progressArea" style="display:none;margin-top:1.25rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+          <span style="font-size:.7rem;color:var(--muted)" id="progLabel">Iniciando...</span>
+          <span style="font-size:.65rem;font-family:var(--mono);color:var(--muted)" id="progCount">0 / {{ module_names|length }}</span>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+        <div id="modGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:.1rem .5rem;margin-top:.5rem"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Capability badges -->
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    {% set caps = ['SPA Crawler', 'SSL/TLS', 'OWASP', 'SQLi Blind', 'SSRF', 'XXE', 'IDOR', 'CORS', 'DNS', 'CVE Lookup', 'Attack Chains', 'Compliance'] %}
+    {% for cap in caps %}
+    <span style="font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);padding:.2rem .55rem;border-radius:99px">{{ cap }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const MODULE_NAMES = {{ module_names | tojson }};
+let evtSource = null;
+let doneCount = 0;
+
+// Preenche project da URL
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.get('project')) {
+  document.getElementById('projectSel').value = urlParams.get('project');
+}
+
+function startScan() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { showErr('Insira uma URL.'); return; }
+
+  // Valida URL básica
+  if (!url.startsWith('http') && !url.match(/^\d+\.\d+/)) {
+    document.getElementById('urlInput').value = 'https://' + url;
+  }
+
+  const projectId = document.getElementById('projectSel').value;
+  const rate      = document.getElementById('rateSel').value;
+  const cookies   = document.getElementById('cookieInput').value.trim();
+  const headersRaw = document.getElementById('headerInput').value.trim();
+  let auth_headers = {};
+  if (headersRaw) { try { auth_headers = JSON.parse(headersRaw); } catch { showErr('Headers inválidos — use formato JSON.'); return; } }
+
+  // UI
+  document.getElementById('errMsg').style.display = 'none';
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('scanBtn').innerHTML = '<span style="display:inline-block;width:10px;height:10px;border:1.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:.4rem"></span>Escaneando...';
+  document.getElementById('progressArea').style.display = 'block';
+  doneCount = 0;
+
+  // Monta grid de módulos
+  const grid = document.getElementById('modGrid');
+  grid.innerHTML = MODULE_NAMES.map((m, i) => `<div class="mod-item" id="mod_${i}"><i class="ti ti-circle" style="font-size:8px;opacity:.3"></i>${m}</div>`).join('');
+
+  // SSE stream
+  const params = new URLSearchParams({ url: document.getElementById('urlInput').value.trim(), rate_profile: rate, cookies, auth_headers: JSON.stringify(auth_headers) });
+  if (projectId) params.set('project_id', projectId);
+
+  if (evtSource) evtSource.close();
+  evtSource = new EventSource(`/scan-stream?${params}`);
+
+  evtSource.onmessage = e => {
+    const d = JSON.parse(e.data);
+
+    if (d.event === 'scan_start') {
+      setProgress(5, 'Iniciando varredura...');
+    }
+
+    if (d.event === 'module_start') {
+      const idx = MODULE_NAMES.indexOf(d.module);
+      if (idx >= 0) {
+        document.getElementById(`mod_${idx}`).className = 'mod-item running';
+        document.getElementById(`mod_${idx}`).innerHTML = `<i class="ti ti-loader" style="font-size:12px;animation:spin .6s linear infinite"></i>${d.module}`;
+      }
+      document.getElementById('progLabel').textContent = `Verificando ${d.module}...`;
+    }
+
+    if (d.event === 'module_done') {
+      doneCount++;
+      const idx = MODULE_NAMES.indexOf(d.module);
+      if (idx >= 0) {
+        const crits = d.critical || 0;
+        const highs = d.high || 0;
+        let badge = '';
+        if (crits > 0) badge = ` <span class="pill s-critical bg-critical" style="font-size:.55rem;padding:.05rem .35rem">${crits}C</span>`;
+        else if (highs > 0) badge = ` <span class="pill s-high bg-high" style="font-size:.55rem;padding:.05rem .35rem">${highs}H</span>`;
+        document.getElementById(`mod_${idx}`).className = 'mod-item done';
+        document.getElementById(`mod_${idx}`).innerHTML = `<i class="ti ti-circle-check" style="font-size:12px"></i>${d.module}${badge}`;
+      }
+      setProgress(Math.min(95, 5 + (doneCount / MODULE_NAMES.length) * 90), `${doneCount}/${MODULE_NAMES.length} módulos`);
+      document.getElementById('progCount').textContent = `${doneCount} / ${MODULE_NAMES.length}`;
+    }
+
+    if (d.event === 'scan_complete') {
+      evtSource.close();
+      setProgress(100, `Concluído em ${d.elapsed}s · Score: ${d.score}/100`);
+      document.getElementById('progCount').textContent = `${MODULE_NAMES.length} / ${MODULE_NAMES.length}`;
+      setTimeout(() => { window.location.href = `/report/${d.scan_id}`; }, 800);
+    }
+  };
+
+  evtSource.onerror = () => {
+    evtSource.close();
+    showErr('Conexão perdida. Verifique se o servidor está ativo e tente novamente.');
+    resetBtn();
+  };
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progFill').style.width = pct + '%';
+  if (label) document.getElementById('progLabel').textContent = label;
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errMsg');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function resetBtn() {
+  document.getElementById('scanBtn').disabled = false;
+  document.getElementById('scanBtn').innerHTML = '<i class="ti ti-search"></i> Escanear';
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') startScan(); });
+</script>
+{% endblock %}

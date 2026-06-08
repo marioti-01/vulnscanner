@@ -1,0 +1,142 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Plugins — VulnScanner{% endblock %}
+{% block page_title %}Plugins{% endblock %}
+{% block topbar_actions %}<button class="btn btn-primary" onclick="openModal('mNew')"><i class="ti ti-plus"></i> Novo plugin</button>{% endblock %}
+{% block extra_css %}<style>@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}.code-area{font-family:var(--mono);font-size:.75rem;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;width:100%;min-height:200px;color:var(--text);outline:none;resize:vertical;line-height:1.6;}[data-theme="light"] .code-area{background:rgba(0,0,0,.04);}</style>{% endblock %}
+
+{% block content %}
+<div class="g2" style="animation:fadeUp .4s ease both;align-items:start">
+  <!-- Plugin list -->
+  <div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header"><div class="card-title"><i class="ti ti-plug"></i> Meus plugins</div></div>
+      {% if plugins %}
+      <div>
+        {% for p in plugins %}
+        <div style="display:flex;align-items:center;gap:.85rem;padding:.85rem 1.25rem;border-bottom:1px solid var(--border)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.82rem;font-weight:500">{{ p.name }}</div>
+            <div style="font-size:.65rem;color:var(--muted)">v{{ p.version }} · {{ p.run_count }} execuções {% if not p.is_active %}<span style="color:var(--amber)">· pausado</span>{% endif %}</div>
+          </div>
+          <div style="display:flex;gap:.3rem">
+            <button onclick="editPlugin('{{ p.id }}','{{ p.name }}','{{ p.version }}')" class="btn btn-icon btn-sm"><i class="ti ti-edit" style="font-size:12px"></i></button>
+            <button onclick="togglePlugin('{{ p.id }}','{{ p.is_active }}')" class="btn btn-icon btn-sm" title="{{ 'Pausar' if p.is_active else 'Ativar' }}"><i class="ti ti-{{ 'player-pause' if p.is_active else 'player-play' }}" style="font-size:12px"></i></button>
+            <button onclick="deletePlugin('{{ p.id }}')" class="btn btn-icon btn-sm btn-danger"><i class="ti ti-trash" style="font-size:12px"></i></button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty" style="padding:2rem"><i class="ti ti-plug-off"></i><h3>Nenhum plugin</h3><p>Crie checks customizados em Python.</p></div>
+      {% endif %}
+    </div>
+
+    <!-- Built-in -->
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ti ti-box"></i> Plugins prontos</div></div>
+      <div>
+        {% for bp in builtin_plugins %}
+        <div style="padding:.85rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:.82rem;font-weight:500">{{ bp.name }}</div>
+            <div style="font-size:.65rem;color:var(--muted)">{{ bp.description }}</div>
+          </div>
+          <button onclick="installBuiltin({{ loop.index0 }})" class="btn btn-sm"><i class="ti ti-download"></i> Instalar</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="card">
+    <div class="card-header"><div class="card-title"><i class="ti ti-code"></i> Interface do plugin</div></div>
+    <div class="card-body">
+      <pre style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;font-size:.7rem;line-height:1.7;color:var(--muted);overflow-x:auto;white-space:pre-wrap"><code><span style="color:#c0392b">def</span> <span style="color:#f0ede8">run</span>(url: str, auth: dict = None) -> dict:
+    findings = []
+    <span style="color:#5a5a5a"># Seu código aqui...</span>
+    findings.append({
+        <span style="color:#2d6a4f">"severity"</span>: <span style="color:#2d6a4f">"high"</span>,  <span style="color:#5a5a5a"># critical|high|medium|low|info</span>
+        <span style="color:#2d6a4f">"title"</span>: <span style="color:#2d6a4f">"Descrição"</span>,
+        <span style="color:#2d6a4f">"detail"</span>: <span style="color:#2d6a4f">"Detalhes"</span>,
+        <span style="color:#2d6a4f">"fix"</span>: <span style="color:#2d6a4f">"Como corrigir"</span>,
+    })
+    <span style="color:#c0392b">return</span> {
+        <span style="color:#2d6a4f">"module"</span>: <span style="color:#2d6a4f">"Nome do Plugin"</span>,
+        <span style="color:#2d6a4f">"icon"</span>: <span style="color:#2d6a4f">"ti-plug"</span>,
+        <span style="color:#2d6a4f">"findings"</span>: findings,
+    }</code></pre>
+      <div style="margin-top:.85rem;font-size:.72rem;color:var(--muted);line-height:1.6">
+        Módulos disponíveis: <code style="font-size:.7rem">requests</code>, <code style="font-size:.7rem">re</code>, <code style="font-size:.7rem">json</code>, <code style="font-size:.7rem">bs4</code>, <code style="font-size:.7rem">dns</code>, <code style="font-size:.7rem">socket</code>, <code style="font-size:.7rem">ssl</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Novo Plugin -->
+<div class="overlay" id="mNew" onclick="if(event.target===this)closeModal('mNew')">
+  <div class="modal" style="max-width:600px">
+    <button class="modal-close" onclick="closeModal('mNew')"><i class="ti ti-x"></i></button>
+    <div class="modal-title" id="modalTitle">Novo plugin</div>
+    <input type="hidden" id="editId">
+    <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem">
+      <div class="field"><label class="field-label">Nome</label><input class="input" id="pName" placeholder="Meu Plugin"></div>
+      <div class="field"><label class="field-label">Versão</label><input class="input" id="pVer" placeholder="1.0.0" style="width:90px"></div>
+    </div>
+    <div class="field"><label class="field-label">Descrição</label><input class="input" id="pDesc" placeholder="O que este plugin verifica?"></div>
+    <div class="field"><label class="field-label">Código Python</label><textarea class="code-area" id="pCode">{{ template }}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('mNew')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePlugin()"><i class="ti ti-check"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const BUILTINS = {{ builtin_plugins | tojson }};
+
+async function savePlugin() {
+  const id = document.getElementById('editId').value;
+  const name = document.getElementById('pName').value.trim();
+  const code = document.getElementById('pCode').value.trim();
+  if (!name || !code) { toast('Nome e código são obrigatórios', 'err'); return; }
+  try {
+    if (id) { await api('PUT', `/api/plugins/${id}`, { name, version: document.getElementById('pVer').value, description: document.getElementById('pDesc').value, code }); }
+    else     { await api('POST', '/api/plugins', { name, version: document.getElementById('pVer').value || '1.0.0', description: document.getElementById('pDesc').value, code }); }
+    toast('Plugin salvo!'); setTimeout(() => location.reload(), 700);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function editPlugin(id, name, ver) {
+  document.getElementById('editId').value = id;
+  document.getElementById('pName').value = name;
+  document.getElementById('pVer').value = ver;
+  document.getElementById('modalTitle').textContent = 'Editar plugin';
+  openModal('mNew');
+}
+
+async function togglePlugin(id, isActive) {
+  try { await api('PUT', `/api/plugins/${id}`, { is_active: isActive !== 'True' }); toast('Plugin atualizado!'); setTimeout(() => location.reload(), 500); }
+  catch(e) { toast(e.message, 'err'); }
+}
+
+async function deletePlugin(id) {
+  if (!confirm('Excluir este plugin?')) return;
+  try { await api('DELETE', `/api/plugins/${id}`); toast('Plugin removido.'); setTimeout(() => location.reload(), 500); }
+  catch(e) { toast(e.message, 'err'); }
+}
+
+function installBuiltin(idx) {
+  const bp = BUILTINS[idx];
+  document.getElementById('pName').value = bp.name;
+  document.getElementById('pDesc').value = bp.description;
+  document.getElementById('pVer').value = bp.version;
+  document.getElementById('pCode').value = bp.code.trim();
+  document.getElementById('editId').value = '';
+  document.getElementById('modalTitle').textContent = 'Instalar plugin';
+  openModal('mNew');
+}
+</script>
+{% endblock %}

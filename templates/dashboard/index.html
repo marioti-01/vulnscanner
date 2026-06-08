@@ -1,0 +1,141 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Dashboard — VulnScanner{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block topbar_actions %}
+<a href="/scan-page" class="btn btn-primary"><i class="ti ti-plus"></i> Novo Scan</a>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="g4" style="margin-bottom:1.5rem">
+  <div class="stat-card" style="animation:fadeUp .4s .05s ease both">
+    <div class="stat-value s-critical">{{ stats.total_criticals }}</div>
+    <div class="stat-label">Críticos encontrados</div>
+    <div class="stat-sub"><i class="ti ti-target" style="font-size:12px"></i> em {{ stats.scans }} scans</div>
+  </div>
+  <div class="stat-card" style="animation:fadeUp .4s .1s ease both">
+    <div class="stat-value" style="color:var(--green)">{{ stats.avg_score }}</div>
+    <div class="stat-label">Score médio</div>
+    <div class="stat-sub"><i class="ti ti-chart-line" style="font-size:12px"></i> todos os projetos</div>
+  </div>
+  <div class="stat-card" style="animation:fadeUp .4s .15s ease both">
+    <div class="stat-value">{{ stats.projects }}</div>
+    <div class="stat-label">Projetos ativos</div>
+    <div class="stat-sub"><i class="ti ti-clock" style="font-size:12px"></i> {{ stats.scheduled }} agendados</div>
+  </div>
+  <div class="stat-card" style="animation:fadeUp .4s .2s ease both">
+    <div class="stat-value">{{ stats.scans }}</div>
+    <div class="stat-label">Total de scans</div>
+    <div class="stat-sub"><i class="ti ti-calendar" style="font-size:12px"></i> {% if stats.last_scan %}último recente{% else %}nenhum ainda{% endif %}</div>
+  </div>
+</div>
+
+<div class="g2" style="margin-bottom:1.5rem">
+  <!-- Projetos -->
+  <div class="card" style="animation:fadeUp .4s .25s ease both">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-folder"></i> Projetos</div>
+      <button class="btn btn-sm" onclick="openModal('mNewProj')"><i class="ti ti-plus"></i> Novo</button>
+    </div>
+    {% if projects %}
+    <div>
+      {% for p in projects[:6] %}
+      <a href="/projects/{{ p.id }}" style="display:flex;align-items:center;gap:.85rem;padding:.8rem 1.25rem;text-decoration:none;border-bottom:1px solid var(--border);transition:background .12s;" onmouseover="this.style.background='var(--accent-dim)'" onmouseout="this.style.background=''">
+        <div style="width:8px;height:8px;border-radius:50%;background:{{ p.color }};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.name }}</div>
+          <div style="font-size:.65rem;color:var(--muted)">{{ p.scan_count() }} scans{% if p.latest_url %} · {{ p.latest_url[:35] }}{% endif %}</div>
+        </div>
+        {% if p.latest_score is not none %}
+          {% set sc = p.latest_score %}
+          {% set c = "var(--red)" if sc < 40 else "var(--amber)" if sc < 70 else "var(--green)" %}
+          <div class="score-ring-sm" style="border-color:{{ c }};color:{{ c }}">{{ sc }}</div>
+        {% endif %}
+      </a>
+      {% endfor %}
+      {% if projects|length > 6 %}
+      <a href="/projects" style="display:block;padding:.65rem 1.25rem;font-size:.65rem;color:var(--muted);text-decoration:none;letter-spacing:.05em;text-align:center;transition:color .15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">Ver todos os {{ projects|length }} projetos →</a>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <i class="ti ti-folder-off"></i>
+      <h3>Nenhum projeto</h3>
+      <p>Crie um projeto para organizar seus scans por alvo ou cliente.</p>
+      <button class="btn" style="margin-top:1rem" onclick="openModal('mNewProj')"><i class="ti ti-plus"></i> Primeiro projeto</button>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Scans recentes -->
+  <div class="card" style="animation:fadeUp .4s .3s ease both">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-history"></i> Scans Recentes</div>
+      <a href="/scan-page" class="btn btn-sm btn-primary"><i class="ti ti-search"></i> Escanear</a>
+    </div>
+    {% if recent_scans %}
+    <div>
+      {% for s in recent_scans %}
+      <a href="/report/{{ s.scan_id }}" style="display:flex;align-items:center;gap:.85rem;padding:.8rem 1.25rem;text-decoration:none;border-bottom:1px solid var(--border);transition:background .12s;" onmouseover="this.style.background='var(--accent-dim)'" onmouseout="this.style.background=''">
+        {% set sc = s.score %}
+        {% set c = "var(--red)" if sc < 40 else "var(--amber)" if sc < 70 else "var(--green)" %}
+        <div class="score-ring-sm" style="border-color:{{ c }};color:{{ c }}">{{ sc }}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.url }}</div>
+          <div style="font-size:.65rem;color:var(--muted)">{{ s.created_at.strftime('%d/%m %H:%M') }} · {{ s.elapsed }}s</div>
+        </div>
+        <div style="display:flex;gap:.25rem;flex-shrink:0">
+          {% if s.count_critical > 0 %}<span class="pill s-critical bg-critical">{{ s.count_critical }}C</span>{% endif %}
+          {% if s.count_high > 0 %}<span class="pill s-high bg-high">{{ s.count_high }}H</span>{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <i class="ti ti-search-off"></i>
+      <h3>Nenhum scan</h3>
+      <p>Inicie o primeiro scan para ver resultados aqui.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal Novo Projeto -->
+<div class="overlay" id="mNewProj">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('mNewProj')"><i class="ti ti-x"></i></button>
+    <div class="modal-title">Novo Projeto</div>
+    <div class="field"><label class="field-label">Nome do projeto</label><input class="input" id="pName" placeholder="Ex: Site Principal"></div>
+    <div class="field"><label class="field-label">Descrição</label><input class="input" id="pDesc" placeholder="Opcional"></div>
+    <div class="field"><label class="field-label">Cor de identificação</label><input type="color" class="input" id="pColor" value="#c0392b" style="height:40px;padding:.3rem"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('mNewProj')">Cancelar</button>
+      <button class="btn btn-primary" onclick="createProject()"><i class="ti ti-check"></i> Criar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function createProject() {
+  const name = document.getElementById('pName').value.trim();
+  if (!name) { toast('Nome obrigatório', 'err'); return; }
+  try {
+    const p = await api('POST', '/api/projects', {
+      name, description: document.getElementById('pDesc').value,
+      color: document.getElementById('pColor').value,
+    });
+    toast('Projeto criado!');
+    setTimeout(() => location.href = `/projects/${p.id}`, 700);
+  } catch(e) { toast(e.message, 'err'); }
+}
+</script>
+{% endblock %}

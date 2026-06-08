@@ -1,0 +1,98 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Agendados — VulnScanner{% endblock %}
+{% block page_title %}Scans Agendados{% endblock %}
+{% block topbar_actions %}<button class="btn btn-primary" onclick="openModal('mNew')"><i class="ti ti-plus"></i> Agendar</button>{% endblock %}
+{% block extra_css %}<style>@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}</style>{% endblock %}
+
+{% block content %}
+<div style="animation:fadeUp .4s ease both">
+{% if scheduled %}
+<div class="card">
+  <table>
+    <thead><tr><th>URL</th><th>Projeto</th><th>Frequência</th><th>Próxima</th><th>Execuções</th><th>Notificação</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for s in scheduled %}
+    <tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;font-weight:500">{{ s.url }}</td>
+      <td style="color:var(--muted);font-size:.72rem">{% for p in projects %}{% if p.id == s.project_id %}{{ p.name }}{% endif %}{% endfor %}</td>
+      <td><span class="pill s-info bg-info">{% if s.frequency == 'daily' %}Diário{% elif s.frequency == 'weekly' %}Semanal{% else %}Mensal{% endif %}</span></td>
+      <td style="color:var(--muted);font-size:.72rem">{{ s.next_run.strftime('%d/%m %H:%M') if s.next_run else '—' }}</td>
+      <td style="text-align:center;font-family:var(--mono);font-size:.8rem;font-weight:500">{{ s.run_count }}</td>
+      <td style="font-size:.7rem;color:var(--muted)">{% if s.notify_email %}<i class="ti ti-mail" style="font-size:12px"></i> {{ s.notify_email[:28] }}{% else %}—{% endif %}</td>
+      <td>{% if s.is_active %}<span class="pill s-low bg-low">Ativo</span>{% else %}<span class="pill s-info bg-info">Pausado</span>{% endif %}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteSched('{{ s.id }}', this)"><i class="ti ti-trash"></i></button></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div style="text-align:center;padding:5rem;color:var(--muted)">
+  <i class="ti ti-clock-off" style="font-size:2rem;display:block;margin-bottom:.75rem;opacity:.3"></i>
+  <div style="font-family:var(--serif);font-style:italic;font-size:1.1rem;color:var(--text);margin-bottom:.4rem">Nenhum scan agendado</div>
+  <p style="font-size:.75rem;margin-bottom:1.25rem">Agende scans automáticos para monitorar seus alvos continuamente.</p>
+  <button class="btn btn-primary" onclick="openModal('mNew')"><i class="ti ti-plus"></i> Agendar primeiro scan</button>
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:1.25rem">
+  <div class="card-header"><div class="card-title"><i class="ti ti-info-circle"></i> Como funciona</div></div>
+  <div class="card-body" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem">
+    {% for icon, title, desc in [('ti-clock','Automático','Executa às 03:00 UTC na frequência configurada. Resultados salvos no projeto vinculado.'),('ti-mail','Email','Receba alertas sobre novos problemas críticos ou degradação do score.'),('ti-chart-line','Trending','Cada execução alimenta o gráfico de histórico do projeto.')] %}
+    <div>
+      <div style="font-size:.75rem;font-weight:600;margin-bottom:.35rem;display:flex;align-items:center;gap:.4rem"><i class="ti {{ icon }}" style="color:var(--red);font-size:14px"></i>{{ title }}</div>
+      <div style="font-size:.72rem;color:var(--muted);line-height:1.6">{{ desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+</div>
+
+<div class="overlay" id="mNew" onclick="if(event.target===this)closeModal('mNew')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('mNew')"><i class="ti ti-x"></i></button>
+    <div class="modal-title">Agendar scan</div>
+    <div class="field"><label class="field-label">URL do alvo</label><input class="input" id="sUrl" placeholder="https://seusite.com"></div>
+    <div class="field"><label class="field-label">Projeto</label>
+      <select class="input" id="sProj"><option value="">Selecione...</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="field"><label class="field-label">Frequência</label>
+        <select class="input" id="sFreq"><option value="daily">Diário (03:00)</option><option value="weekly">Semanal (2ª feira)</option><option value="monthly">Mensal (dia 1)</option></select>
+      </div>
+      <div class="field"><label class="field-label">Perfil</label>
+        <select class="input" id="sRate"><option value="normal">Normal</option><option value="stealth">Stealth</option><option value="aggressive">Agressivo</option></select>
+      </div>
+    </div>
+    <div class="field"><label class="field-label">Email (opcional)</label><input class="input" id="sEmail" type="email" placeholder="seu@email.com"></div>
+    <div class="field"><label class="field-label">Notificar quando</label>
+      <select class="input" id="sNotify"><option value="always">Sempre</option><option value="critical">Apenas critical</option><option value="degradation">Score abaixo de 70</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('mNew')">Cancelar</button>
+      <button class="btn btn-primary" onclick="createSched()"><i class="ti ti-check"></i> Agendar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function createSched() {
+  const url = document.getElementById('sUrl').value.trim();
+  const proj = document.getElementById('sProj').value;
+  if (!url) { toast('URL obrigatória', 'err'); return; }
+  if (!proj) { toast('Selecione um projeto', 'err'); return; }
+  try {
+    await api('POST', '/api/scheduled', { url, project_id: proj, frequency: document.getElementById('sFreq').value, rate_profile: document.getElementById('sRate').value, notify_email: document.getElementById('sEmail').value, notify_on: document.getElementById('sNotify').value });
+    toast('Scan agendado!');
+    setTimeout(() => location.reload(), 700);
+  } catch(e) { toast(e.message, 'err'); }
+}
+async function deleteSched(id, btn) {
+  if (!confirm('Remover agendamento?')) return;
+  try { await api('DELETE', `/api/scheduled/${id}`); btn.closest('tr').remove(); toast('Removido.'); }
+  catch(e) { toast(e.message, 'err'); }
+}
+</script>
+{% endblock %}

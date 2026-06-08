@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VulnScanner — Criar conta</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0a0a0a;--surface:#111111;--border:rgba(255,255,255,0.07);--text:#f0ede8;--muted:#5a5a5a;--accent:#f0ede8;--accent-dim:rgba(240,237,232,0.08);--red:#c0392b;--red-dim:rgba(192,57,43,0.12);--green:#2d6a4f;--radius:2px;--mono:'DM Mono',monospace;--serif:'Cormorant Garamond',Georgia,serif; }
+  [data-theme="light"] { --bg:#f5f2ed;--surface:#ffffff;--border:rgba(0,0,0,0.08);--text:#0a0a0a;--muted:#8a8a8a;--accent:#0a0a0a;--accent-dim:rgba(10,10,10,0.06);--red-dim:rgba(192,57,43,0.08); }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--mono);background:var(--bg);color:var(--text);min-height:100vh;display:grid;place-items:center;overflow-x:hidden;transition:background .4s,color .4s;}
+  body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:1;opacity:.4;}
+  .bg-lines{position:fixed;inset:0;z-index:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 79px,var(--border) 80px),repeating-linear-gradient(90deg,transparent,transparent 79px,var(--border) 80px);animation:shiftLines 30s linear infinite;opacity:.5;}
+  @keyframes shiftLines{from{transform:translate(0,0);}to{transform:translate(80px,80px);}}
+  .theme-btn{position:fixed;top:1.5rem;right:1.5rem;z-index:100;background:var(--surface);border:1px solid var(--border);color:var(--muted);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer;font-size:14px;transition:all .2s;}
+  .theme-btn:hover{color:var(--text);border-color:var(--text);}
+  .wrap{position:relative;z-index:10;width:100%;max-width:440px;padding:1.5rem;animation:fadeUp .6s ease both;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+  .logo{font-family:var(--serif);font-size:2.4rem;font-weight:300;letter-spacing:-0.02em;text-align:center;margin-bottom:.25rem;line-height:1;}
+  .logo em{font-style:italic;color:var(--red);}
+  .tagline{font-size:.65rem;letter-spacing:.25em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:2.5rem;}
+  .card{background:var(--surface);border:1px solid var(--border);padding:2.5rem 2rem;position:relative;overflow:hidden;transition:background .4s,border-color .4s;}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:.6;}
+  .card-title{font-family:var(--serif);font-size:1.5rem;font-weight:300;font-style:italic;margin-bottom:.25rem;}
+  .card-sub{font-size:.68rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2rem;}
+  {% if first_run %}.first-run-badge{display:inline-block;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.25);color:var(--red);font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;padding:.25rem .6rem;border-radius:2px;margin-bottom:1.25rem;}{% endif %}
+  .field{margin-bottom:1.1rem;}
+  .field label{display:block;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;}
+  .field input{width:100%;background:var(--accent-dim);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.85rem;padding:.75rem 1rem;border-radius:var(--radius);outline:none;transition:border-color .2s,background .2s;}
+  .field input:focus{border-color:var(--text);background:transparent;}
+  .field input::placeholder{color:var(--muted);}
+  .btn-primary{width:100%;padding:.9rem;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-family:var(--mono);font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;margin-top:.5rem;transition:opacity .15s,transform .1s;}
+  .btn-primary:hover{opacity:.88;}
+  .btn-primary:active{transform:scale(.99);}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed;}
+  .err{background:var(--red-dim);border:1px solid rgba(192,57,43,.25);color:var(--red);font-size:.75rem;padding:.65rem .85rem;border-radius:var(--radius);margin-bottom:1rem;display:none;}
+  .footer-link{text-align:center;margin-top:1.5rem;font-size:.68rem;color:var(--muted);letter-spacing:.05em;}
+  .footer-link a{color:var(--text);text-decoration:none;border-bottom:1px solid var(--border);padding-bottom:1px;transition:border-color .2s;}
+  .footer-link a:hover{border-color:var(--text);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .spinner{display:inline-block;width:12px;height:12px;border:1.5px solid rgba(255,255,255,.3);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:.4rem;}
+</style>
+</head>
+<body>
+<div class="bg-lines"></div>
+<button class="theme-btn" onclick="toggleTheme()" title="Alternar tema">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+<div class="wrap">
+  <div class="logo">Vuln<em>Scanner</em></div>
+  <div class="tagline">Plataforma de segurança web</div>
+  <div class="card">
+    <div class="card-title">Criar conta</div>
+    <div class="card-sub">{% if first_run %}Primeiro usuário — você será admin{% else %}Acesso à plataforma{% endif %}</div>
+    {% if first_run %}<div class="first-run-badge">★ Configuração inicial</div>{% endif %}
+    <div class="err" id="err"></div>
+    <div class="field"><label>Nome de usuário</label><input id="username" type="text" placeholder="marioti" autocomplete="username" autofocus></div>
+    <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="seu@email.com" autocomplete="email"></div>
+    <div class="field"><label>Senha <span style="color:var(--muted)">(mínimo 8 caracteres)</span></label><input id="password" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+    <button class="btn-primary" id="btn" onclick="doRegister()">Criar conta</button>
+  </div>
+  <div class="footer-link">Já tem conta? <a href="/auth/login">Entrar</a></div>
+</div>
+<script>
+  const t = localStorage.getItem('vs-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  function toggleTheme() {
+    const nt = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', nt);
+    localStorage.setItem('vs-theme', nt);
+  }
+  async function doRegister() {
+    const btn = document.getElementById('btn');
+    const err = document.getElementById('err');
+    const u = document.getElementById('username').value.trim();
+    const e = document.getElementById('email').value.trim();
+    const p = document.getElementById('password').value;
+    if (!u || !e || !p) { showErr('Preencha todos os campos.'); return; }
+    if (p.length < 8) { showErr('Senha deve ter pelo menos 8 caracteres.'); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Criando...';
+    err.style.display = 'none';
+    try {
+      const r = await fetch('/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u, email:e, password:p}) });
+      const d = await r.json();
+      if (d.success) { btn.innerHTML = '✓ Redirecionando...'; window.location.href = d.redirect || '/'; }
+      else { showErr(d.error || 'Erro ao criar conta.'); btn.disabled=false; btn.innerHTML='Criar conta'; }
+    } catch { showErr('Erro de conexão.'); btn.disabled=false; btn.innerHTML='Criar conta'; }
+  }
+  function showErr(msg) { const e=document.getElementById('err'); e.textContent=msg; e.style.display='block'; }
+  document.addEventListener('keydown', e => { if(e.key==='Enter') doRegister(); });
+</script>
+</body>
+</html>

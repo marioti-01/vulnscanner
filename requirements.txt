@@ -1,0 +1,44 @@
+# ─────────────────────────────────────────────────────────────────
+# VulnScanner v8.0 — Dependências
+# Instale: pip install -r requirements.txt
+# SPA Crawler: playwright install chromium   (após pip install)
+# ─────────────────────────────────────────────────────────────────
+
+# ── Flask e extensões (obrigatório) ──────────────────────────────
+flask>=3.0.0
+flask-sqlalchemy>=3.1.0
+flask-login>=0.6.3
+flask-bcrypt>=1.0.1
+flask-socketio>=5.3.0       # WebSocket / notificações em tempo real
+gunicorn>=21.2.0             # Servidor WSGI para produção
+eventlet>=0.35.0             # Async mode para Socket.IO
+
+# ── Scan e HTTP (obrigatório) ────────────────────────────────────
+requests>=2.31.0
+dnspython>=2.6.0             # DNS checker — SPF, DMARC, zone transfer
+urllib3>=2.0.0
+beautifulsoup4>=4.12.0       # HTML parsing — crawler, tech detector
+lxml>=5.0.0                  # Parser HTML mais rápido (BS4 backend)
+
+# ── Agendamento (obrigatório) ────────────────────────────────────
+apscheduler>=3.10.0          # Scans agendados (diário/semanal/mensal)
+
+# ── API Docs (obrigatório) ───────────────────────────────────────
+flasgger>=0.9.7              # Swagger UI em /api/docs
+
+# ── SPA Crawler (opcional — recomendado) ─────────────────────────
+# Após instalar, rode: playwright install chromium
+playwright>=1.44.0           # Headless Chromium para React/Vue/Angular
+
+# ── Banco de dados produção (opcional) ──────────────────────────
+# SQLite já funciona para desenvolvimento (sem este pacote)
+# Necessário apenas quando DATABASE_URL=postgresql://...
+psycopg2-binary>=2.9.9       # Driver PostgreSQL
+
+# ── Export PDF (opcional) ────────────────────────────────────────
+# Se não instalado, exporta HTML como fallback automaticamente
+weasyprint>=61.0             # Geração de PDF profissional
+
+# ── Testes (desenvolvimento) ─────────────────────────────────────
+pytest>=8.0.0
+pytest-flask>=1.3.0

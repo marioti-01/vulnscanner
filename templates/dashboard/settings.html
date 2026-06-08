@@ -1,0 +1,245 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Configurações — VulnScanner{% endblock %}
+{% block page_title %}Configurações{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;display:flex;flex-direction:column;gap:1.25rem;animation:fadeUp .4s ease both">
+
+  <!-- Perfil -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-user"></i> Perfil</div>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:1.25rem;margin-bottom:1.5rem">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--red-dim);border:1px solid var(--red-border);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;font-size:1.8rem;color:var(--red)">
+          {{ (user.username[0] if user else 'U') | upper }}
+        </div>
+        <div>
+          <div style="font-size:.95rem;font-weight:500">{{ user.username }}</div>
+          <div style="font-size:.72rem;color:var(--muted)">{{ user.email }}</div>
+          <div style="margin-top:.25rem"><span class="pill {% if user.role == 'admin' %}s-critical bg-critical{% else %}s-info bg-info{% endif %}">{{ user.role }}</span></div>
+        </div>
+      </div>
+
+      <div id="profileMsg" style="display:none;padding:.65rem .85rem;border-radius:var(--radius);font-size:.75rem;margin-bottom:1rem;border:1px solid"></div>
+
+      <div class="field"><label class="field-label">E-mail</label><input class="input" id="profEmail" value="{{ user.email }}" type="email"></div>
+
+      <div style="border-top:1px solid var(--border);margin:1.25rem 0;padding-top:1.25rem">
+        <div style="font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem">Alterar senha</div>
+        <div class="field"><label class="field-label">Senha atual</label><input class="input" id="profCurrent" type="password" placeholder="••••••••"></div>
+        <div class="field"><label class="field-label">Nova senha</label><input class="input" id="profNew" type="password" placeholder="Mínimo 8 caracteres"></div>
+        <div class="field"><label class="field-label">Confirmar nova senha</label><input class="input" id="profConfirm" type="password" placeholder="••••••••"></div>
+      </div>
+
+      <button class="btn btn-primary" onclick="saveProfile()"><i class="ti ti-check"></i> Salvar alterações</button>
+    </div>
+  </div>
+
+  <!-- Quota -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-gauge"></i> Quota de uso</div>
+    </div>
+    <div class="card-body">
+      <div class="g2" style="margin-bottom:1rem">
+        <div>
+          <div style="font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem">Scans hoje</div>
+          <div style="font-family:var(--serif);font-size:1.8rem;font-weight:300">{{ quota.scans_today }} <span style="font-size:1rem;color:var(--muted)">/ {{ quota.scans_limit }}</span></div>
+          <div style="height:3px;background:var(--border);border-radius:99px;margin-top:.5rem;overflow:hidden">
+            <div style="height:100%;background:{% if quota.scans_today / quota.scans_limit > 0.8 %}var(--red){% else %}var(--green){% endif %};width:{{ [quota.scans_today / quota.scans_limit * 100, 100]|min }}%;border-radius:99px;transition:width .5s"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem">Req/min</div>
+          <div style="font-family:var(--serif);font-size:1.8rem;font-weight:300">{{ quota.requests_per_minute }}</div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:.5rem">limite por minuto</div>
+        </div>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted)">
+        Scans simultâneos: <strong style="color:var(--text)">{{ quota.concurrent_active }} ativo(s)</strong> de {{ quota.concurrent_limit }} permitidos
+      </div>
+    </div>
+  </div>
+
+  <!-- API Keys -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-key"></i> API Keys</div>
+      <button class="btn btn-sm" onclick="openModal('mNewKey')"><i class="ti ti-plus"></i> Nova key</button>
+    </div>
+    <div id="keysList" style="padding:.5rem 0"></div>
+  </div>
+
+  <!-- Tema -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-palette"></i> Aparência</div>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;gap:.75rem">
+        <button onclick="setTheme('dark')" class="btn" id="btnDark"><i class="ti ti-moon"></i> Escuro</button>
+        <button onclick="setTheme('light')" class="btn" id="btnLight"><i class="ti ti-sun"></i> Claro</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sair -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-logout"></i> Sessão</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Encerrar sessão atual em todos os dispositivos.</p>
+      <a href="/auth/logout" class="btn btn-danger" onclick="return confirm('Deseja realmente sair?')"><i class="ti ti-logout"></i> Sair da conta</a>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nova API Key -->
+<div class="overlay" id="mNewKey">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('mNewKey')"><i class="ti ti-x"></i></button>
+    <div class="modal-title">Nova API Key</div>
+    <div class="field"><label class="field-label">Nome identificador</label><input class="input" id="keyName" placeholder="Ex: GitHub CI"></div>
+    <div id="keyResult" style="display:none;background:var(--accent-dim);border:1px solid var(--border);padding:1rem;border-radius:var(--radius);margin-top:1rem">
+      <div style="font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem">Sua API Key (copie agora — não será exibida novamente)</div>
+      <code id="keyValue" style="font-size:.78rem;word-break:break-all;color:var(--text)"></code>
+      <button onclick="copyKey()" class="btn btn-sm" style="margin-top:.75rem"><i class="ti ti-copy"></i> Copiar</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('mNewKey')">Fechar</button>
+      <button class="btn btn-primary" id="btnCreateKey" onclick="createKey()"><i class="ti ti-plus"></i> Criar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Tema
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('vs-theme', t);
+  document.getElementById('btnDark').classList.toggle('btn-primary', t === 'dark');
+  document.getElementById('btnLight').classList.toggle('btn-primary', t === 'light');
+}
+const curTheme = localStorage.getItem('vs-theme') || 'dark';
+setTheme(curTheme);
+
+// Perfil
+async function saveProfile() {
+  const email = document.getElementById('profEmail').value.trim();
+  const current = document.getElementById('profCurrent').value;
+  const newPwd = document.getElementById('profNew').value;
+  const confirm = document.getElementById('profConfirm').value;
+  const msg = document.getElementById('profileMsg');
+
+  if (newPwd && newPwd !== confirm) {
+    showMsg('As senhas não coincidem.', 'err'); return;
+  }
+  if (newPwd && newPwd.length < 8) {
+    showMsg('Nova senha deve ter pelo menos 8 caracteres.', 'err'); return;
+  }
+
+  const payload = { email };
+  if (newPwd) { payload.password = newPwd; payload.current_password = current; }
+
+  try {
+    await api('PUT', '/auth/profile', payload);
+    showMsg('Perfil atualizado com sucesso!', 'ok');
+    document.getElementById('profCurrent').value = '';
+    document.getElementById('profNew').value = '';
+    document.getElementById('profConfirm').value = '';
+  } catch(e) { showMsg(e.message, 'err'); }
+}
+
+function showMsg(txt, type) {
+  const el = document.getElementById('profileMsg');
+  el.textContent = txt;
+  el.style.display = 'block';
+  if (type === 'ok') {
+    el.style.background = 'var(--green-dim)';
+    el.style.borderColor = 'rgba(45,106,79,.25)';
+    el.style.color = 'var(--green)';
+  } else {
+    el.style.background = 'var(--red-dim)';
+    el.style.borderColor = 'var(--red-border)';
+    el.style.color = 'var(--red)';
+  }
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// API Keys
+async function loadKeys() {
+  try {
+    const keys = await api('GET', '/auth/api-keys');
+    const list = document.getElementById('keysList');
+    if (!keys.length) {
+      list.innerHTML = '<div class="empty" style="padding:1.5rem"><i class="ti ti-key-off"></i><p>Nenhuma API key criada.</p></div>';
+      return;
+    }
+    list.innerHTML = keys.map(k => `
+      <div style="display:flex;align-items:center;gap:.85rem;padding:.8rem 1.25rem;border-bottom:1px solid var(--border)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:500">${k.name}</div>
+          <div style="font-size:.65rem;color:var(--muted);font-family:var(--mono)">${k.key_preview} · ${k.scans_used} scans · criada ${k.created_at.slice(0,10)}</div>
+        </div>
+        <button onclick="deleteKey('${k.id}', this)" class="btn btn-sm btn-danger"><i class="ti ti-trash"></i></button>
+      </div>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function createKey() {
+  const name = document.getElementById('keyName').value.trim();
+  if (!name) { toast('Nome obrigatório', 'err'); return; }
+  const btn = document.getElementById('btnCreateKey');
+  btn.disabled = true;
+  try {
+    const k = await api('POST', '/auth/api-keys', { name });
+    document.getElementById('keyValue').textContent = k.key;
+    document.getElementById('keyResult').style.display = 'block';
+    document.getElementById('keyName').value = '';
+    btn.style.display = 'none';
+    loadKeys();
+  } catch(e) { toast(e.message, 'err'); btn.disabled = false; }
+}
+
+function copyKey() {
+  const val = document.getElementById('keyValue').textContent;
+  navigator.clipboard.writeText(val);
+  toast('API Key copiada!');
+}
+
+async function deleteKey(id, btn) {
+  if (!confirm('Excluir esta API key? Integrações que a usam vão parar de funcionar.')) return;
+  try {
+    await api('DELETE', `/auth/api-keys/${id}`);
+    btn.closest('div[style]').remove();
+    toast('API Key removida.');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+document.getElementById('mNewKey').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal('mNewKey');
+});
+
+// Reset modal ao fechar
+document.getElementById('mNewKey').addEventListener('transitionend', () => {
+  if (!document.getElementById('mNewKey').classList.contains('open')) {
+    document.getElementById('keyResult').style.display = 'none';
+    document.getElementById('btnCreateKey').style.display = '';
+    document.getElementById('btnCreateKey').disabled = false;
+  }
+});
+
+loadKeys();
+</script>
+{% endblock %}

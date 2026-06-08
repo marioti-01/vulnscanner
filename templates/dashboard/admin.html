@@ -1,0 +1,78 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Admin — VulnScanner{% endblock %}
+{% block page_title %}Painel Admin{% endblock %}
+{% block extra_css %}<style>@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}</style>{% endblock %}
+
+{% block content %}
+<div style="animation:fadeUp .4s ease both">
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem">
+  <div class="stat-card"><div class="stat-value">{{ users|length }}</div><div class="stat-label">Usuários</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:{% if scheduler.running %}var(--green){% else %}var(--red){% endif %}">{{ 'ON' if scheduler.running else 'OFF' }}</div><div class="stat-label">Scheduler ({{ scheduler.jobs_count }} jobs)</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:{% if breakers|selectattr('state','eq','open')|list|length > 0 %}var(--red){% else %}var(--green){% endif %}">{{ breakers|selectattr('state','eq','open')|list|length }}</div><div class="stat-label">Circuit Breakers abertos</div></div>
+</div>
+
+<div class="card" style="margin-bottom:1.25rem">
+  <div class="card-header"><div class="card-title"><i class="ti ti-users"></i> Usuários</div></div>
+  <table>
+    <thead><tr><th>Usuário</th><th>Email</th><th>Role</th><th>Cadastro</th><th>Último login</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+    <tr>
+      <td style="font-weight:500;font-size:.8rem">{{ u.username }}</td>
+      <td style="color:var(--muted);font-size:.72rem">{{ u.email }}</td>
+      <td>{% if u.role == 'admin' %}<span class="pill s-critical bg-critical">admin</span>{% else %}<span class="pill s-info bg-info">user</span>{% endif %}</td>
+      <td style="color:var(--muted);font-size:.7rem">{{ u.created_at.strftime('%d/%m/%Y') }}</td>
+      <td style="color:var(--muted);font-size:.7rem">{{ u.last_login.strftime('%d/%m %H:%M') if u.last_login else '—' }}</td>
+      <td>{% if u.is_active %}<span class="pill s-low bg-low">Ativo</span>{% else %}<span class="pill s-critical bg-critical">Inativo</span>{% endif %}</td>
+      <td>{% if u.id != user.id %}<button class="btn btn-sm {% if u.is_active %}btn-danger{% endif %}" onclick="toggleUser('{{ u.id }}',{{ 'false' if u.is_active else 'true' }})">{% if u.is_active %}<i class="ti ti-lock"></i>{% else %}<i class="ti ti-lock-open"></i>{% endif %}</button>{% else %}<span style="font-size:.65rem;color:var(--muted)">você</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card" style="margin-bottom:1.25rem">
+  <div class="card-header"><div class="card-title"><i class="ti ti-circuit-breaker"></i> Circuit Breakers</div><button class="btn btn-sm" onclick="location.reload()"><i class="ti ti-refresh"></i></button></div>
+  <table>
+    <thead><tr><th>Módulo</th><th>Estado</th><th>Falhas</th><th>Timeout</th></tr></thead>
+    <tbody>
+    {% for b in breakers %}
+    <tr>
+      <td style="font-size:.8rem;font-weight:500">{{ b.module }}</td>
+      <td>{% if b.state == 'closed' %}<span class="pill s-low bg-low">Fechado</span>{% elif b.state == 'open' %}<span class="pill s-critical bg-critical">Aberto</span>{% else %}<span class="pill s-high bg-high">Half-open</span>{% endif %}</td>
+      <td style="text-align:center;font-family:var(--mono);font-size:.8rem">{{ b.failures }}</td>
+      <td style="color:var(--muted);font-size:.72rem">{{ b.timeout }}s</td>
+    </tr>
+    {% endfor %}
+    {% if not breakers %}<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:1.5rem;font-size:.75rem">Nenhum módulo executado ainda.</td></tr>{% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% if scheduler.jobs %}
+<div class="card">
+  <div class="card-header"><div class="card-title"><i class="ti ti-clock"></i> Jobs do Scheduler</div></div>
+  <table>
+    <thead><tr><th>Job ID</th><th>Próxima execução</th></tr></thead>
+    <tbody>
+    {% for j in scheduler.jobs %}
+    <tr>
+      <td style="font-family:var(--mono);font-size:.72rem;color:var(--muted)">{{ j.id }}</td>
+      <td style="font-size:.75rem">{{ j.next_run or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function toggleUser(id, activate) {
+  try { await api('PUT', `/api/admin/users/${id}`, { is_active: activate }); toast(activate ? 'Usuário ativado' : 'Usuário desativado'); setTimeout(() => location.reload(), 600); }
+  catch(e) { toast(e.message, 'err'); }
+}
+</script>
+{% endblock %}
